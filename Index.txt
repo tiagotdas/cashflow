@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fluxo de Caixa</title>
+    <style>
+        /* Remove margens e faz o site ocupar 100% da tela */
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden; /* Evita barra de rolagem dupla */
+            background-color: #f4f7f6;
+        }
+        /* O iframe deve ser invisível nas bordas */
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <iframe src="https://script.google.com/u/0/home/projects/1TVxkXOFJ_GhYpssieIMxpf9wYb64nzTszCqKwCXMiHCslzEVMG4TAT1E/edit"></iframe>
+</body>
+</html>
