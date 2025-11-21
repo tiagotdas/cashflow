@@ -1,29 +1,273 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-pt">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fluxo de Caixa</title>
+    <title>Fluxo de Caixa Seguro</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
     <style>
-        /* Remove margens e faz o site ocupar 100% da tela */
-        body, html {
-            margin: 0;
-            padding: 0;
-            height: 100%;
-            overflow: hidden; /* Evita barra de rolagem dupla */
-            background-color: #f4f7f6;
+        :root { --primary: #2c3e50; --accent: #3498db; --success: #27ae60; --danger: #c0392b; --warning: #f39c12; --light: #ecf0f1; }
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f4f7f6; margin: 0; padding: 0; }
+        
+        /* --- ESTILOS DE LOGIN --- */
+        #tela-login {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--primary); display: flex; justify-content: center; align-items: center;
+            z-index: 2000;
         }
-        /* O iframe deve ser invisível nas bordas */
-        iframe {
-            width: 100%;
-            height: 100%;
-            border: none;
-            display: block;
+        .login-box {
+            background: white; padding: 40px; border-radius: 10px; text-align: center;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2); width: 90%; max-width: 350px;
         }
+        .login-box h2 { color: var(--primary); margin-bottom: 20px; }
+        .login-box input { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 5px; font-size: 16px; box-sizing: border-box;}
+        .btn-login { width: 100%; padding: 12px; background: var(--accent); color: white; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; font-weight: bold;}
+        .btn-login:hover { background: #2980b9; }
+
+        /* --- ESTILOS DO SISTEMA (Ocultos inicialmente) --- */
+        #app-sistema { display: none; padding: 20px; }
+        
+        .container { max-width: 1000px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1, h2 { color: var(--primary); border-bottom: 2px solid var(--accent); padding-bottom: 10px; }
+        .dashboard { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .card { padding: 20px; border-radius: 8px; color: white; text-align: center; }
+        .card-entrada { background-color: var(--success); }
+        .card-saida { background-color: var(--danger); }
+        .card-saldo { background-color: var(--primary); }
+        .card p { font-size: 1.8rem; font-weight: bold; margin: 10px 0 0 0; }
+        .small-text { font-size: 0.9rem; margin-top: 5px; opacity: 0.8; }
+        #loading { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); z-index: 999; text-align: center; padding-top: 200px; font-size: 1.5rem; color: var(--primary); font-weight: bold; }
+        .chart-container { position: relative; height: 300px; width: 100%; margin-bottom: 30px; border: 1px solid #eee; border-radius: 8px; padding: 10px; }
+        .form-group { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 20px; padding: 20px; background: var(--light); border-radius: 5px; }
+        input, select, button { padding: 10px; border: 1px solid #ccc; border-radius: 4px; width: 100%; box-sizing: border-box; }
+        button { cursor: pointer; font-weight: bold; }
+        .btn-add { background-color: var(--accent); color: white; border: none; }
+        .btn-clear { background-color: #7f8c8d; color: white; border: none; width: auto; margin-top: 10px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background-color: var(--primary); color: white; }
+        .valor-entrada { color: var(--success); font-weight: bold; }
+        .valor-saida { color: var(--danger); font-weight: bold; }
+        .linha-previsto { background-color: #fffbf0; color: #777; font-style: italic; }
+        .tag { padding: 2px 6px; border-radius: 4px; font-size: 0.8em; color: white; }
+        .tag-real { background: var(--success); } .tag-prev { background: var(--warning); }
     </style>
 </head>
 <body>
-    <iframe src="https://script.google.com/macros/s/AKfycbyZIl9W74XsWKCCK8f5aVoT2uKKJtcS4xaUG-dOlFDwmklJQMhNWjBZefeN2NTk4MXYUw/exec"></iframe>
+
+    <div id="tela-login">
+        <div class="login-box">
+            <h2>🔒 Acesso Restrito</h2>
+            <p>Insira a senha para acessar o financeiro.</p>
+            <input type="password" id="senha-input" placeholder="Senha">
+            <button class="btn-login" onclick="tentarLogin()">Entrar</button>
+            <p id="msg-erro" style="color:red; display:none; margin-top:10px;">Senha incorreta!</p>
+        </div>
+    </div>
+
+    <div id="loading">🔄 Sincronizando...</div>
+
+    <div id="app-sistema">
+        <div class="container">
+            <h1>📊 Fluxo de Caixa Seguro</h1>
+
+            <div class="dashboard">
+                <div class="card card-entrada">
+                    <h3>Entradas (Real)</h3>
+                    <p id="display-entradas">R$ 0,00</p>
+                </div>
+                <div class="card card-saida">
+                    <h3>Saídas (Real)</h3>
+                    <p id="display-saidas">R$ 0,00</p>
+                </div>
+                <div class="card card-saldo">
+                    <h3>Saldo Hoje</h3>
+                    <p id="display-saldo">R$ 0,00</p>
+                    <div id="display-saldo-projetado" class="small-text">Projeção: R$ 0,00</div>
+                </div>
+            </div>
+
+            <div class="chart-container"><canvas id="graficoFluxo"></canvas></div>
+
+            <div class="form-group">
+                <input type="date" id="data" required>
+                <select id="tipo"><option value="Entrada">Entrada</option><option value="Saida">Saída</option></select>
+                <select id="categoria">
+                    <option value="Vendas">Vendas</option><option value="Serviços">Serviços</option>
+                    <option value="Fornecedores">Fornecedores</option><option value="Aluguel">Aluguel</option>
+                    <option value="Salário">Salário</option><option value="Outros">Outros</option>
+                </select>
+                <select id="status"><option value="Realizado">Realizado</option><option value="Previsto">Previsto</option></select>
+                <input type="number" id="valor" placeholder="Valor (R$)" step="0.01" min="0">
+                <button class="btn-add" onclick="adicionarItem()">+ Adicionar</button>
+            </div>
+            
+            <button class="btn-clear" onclick="limparTudo()">🗑️ Limpar Base de Dados</button>
+
+            <h2>Extrato</h2>
+            <table>
+                <thead><tr><th>Data</th><th>Categoria</th><th>Status</th><th>Tipo</th><th>Valor</th><th>Saldo Acum.</th></tr></thead>
+                <tbody id="tabela-corpo"></tbody>
+            </table>
+        </div>
+    </div>
+
+<script>
+    let chartInstance = null;
+    let dadosLocais = [];
+
+    // --- LÓGICA DE LOGIN ---
+    function tentarLogin() {
+        const senha = document.getElementById('senha-input').value;
+        const btn = document.querySelector('.btn-login');
+        
+        btn.innerText = "Verificando...";
+        btn.disabled = true;
+
+        google.script.run
+            .withSuccessHandler(function(autorizado) {
+                if(autorizado) {
+                    // Senha correta: Esconde login, mostra sistema e carrega dados
+                    document.getElementById('tela-login').style.display = 'none';
+                    document.getElementById('app-sistema').style.display = 'block';
+                    iniciar(); // Só carrega os dados financeiro AGORA
+                } else {
+                    // Senha errada
+                    document.getElementById('msg-erro').style.display = 'block';
+                    btn.innerText = "Entrar";
+                    btn.disabled = false;
+                }
+            })
+            .verificarAcesso(senha);
+    }
+
+    // Permitir Enter no input de senha
+    document.getElementById('senha-input').addEventListener('keypress', function (e) {
+        if (e.key === 'Enter') tentarLogin();
+    });
+
+    // --- SISTEMA FINANCEIRO ---
+
+    function iniciar() {
+        document.getElementById('data').valueAsDate = new Date();
+        mostrarLoading(true);
+        google.script.run
+            .withSuccessHandler(processarDadosRecebidos)
+            .withFailureHandler(tratarErro)
+            .buscarDados();
+    }
+
+    function tratarErro(erro) {
+        mostrarLoading(false);
+        alert("Erro: " + erro.message);
+    }
+
+    function processarDadosRecebidos(jsonDados) {
+        try {
+            dadosLocais = JSON.parse(jsonDados);
+            dadosLocais.sort((a, b) => new Date(a.data) - new Date(b.data));
+            atualizarInterface();
+        } catch (e) { console.error(e); }
+        mostrarLoading(false);
+    }
+
+    function adicionarItem() {
+        const data = document.getElementById('data').value;
+        const valor = parseFloat(document.getElementById('valor').value);
+        if (!data || isNaN(valor)) return alert("Preencha data e valor!");
+
+        const obj = {
+            id: Date.now(),
+            data: data,
+            tipo: document.getElementById('tipo').value,
+            categoria: document.getElementById('categoria').value,
+            status: document.getElementById('status').value,
+            valor: valor
+        };
+
+        mostrarLoading(true);
+        google.script.run.withSuccessHandler(() => {
+            iniciar(); 
+            document.getElementById('valor').value = '';
+        }).salvarMovimentacao(obj);
+    }
+
+    function limparTudo() {
+        if(confirm("Apagar tudo da planilha?")) {
+            mostrarLoading(true);
+            google.script.run.withSuccessHandler(iniciar).limparBancoDeDados();
+        }
+    }
+
+    function atualizarInterface() {
+        const tbody = document.getElementById('tabela-corpo');
+        tbody.innerHTML = '';
+        let totalEntradas = 0, totalSaidas = 0, saldoAcumulado = 0;
+        let labels = [], dataGraph = [], colors = [];
+
+        dadosLocais.forEach(mov => {
+            if (mov.status === 'Realizado') {
+                if (mov.tipo === 'Entrada') totalEntradas += mov.valor;
+                else totalSaidas += mov.valor;
+            }
+            let impacto = (mov.tipo === 'Entrada') ? mov.valor : -mov.valor;
+            saldoAcumulado += impacto;
+
+            labels.push(formatarData(mov.data));
+            dataGraph.push(saldoAcumulado);
+            colors.push(mov.status === 'Previsto' ? '#f39c12' : '#2c3e50');
+
+            const tr = document.createElement('tr');
+            if(mov.status === 'Previsto') tr.classList.add('linha-previsto');
+            const tag = mov.status === 'Realizado' ? '<span class="tag tag-real">Real</span>' : '<span class="tag tag-prev">Futuro</span>';
+            
+            tr.innerHTML = `
+                <td>${formatarData(mov.data)}</td>
+                <td>${mov.categoria}</td>
+                <td>${tag}</td>
+                <td style="color: ${mov.tipo === 'Entrada' ? 'var(--success)' : 'var(--danger)'}">${mov.tipo}</td>
+                <td class="${mov.tipo === 'Entrada' ? 'valor-entrada' : 'valor-saida'}">R$ ${mov.valor.toFixed(2)}</td>
+                <td><strong>R$ ${saldoAcumulado.toFixed(2)}</strong></td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        document.getElementById('display-entradas').innerText = `R$ ${totalEntradas.toFixed(2)}`;
+        document.getElementById('display-saidas').innerText = `R$ ${totalSaidas.toFixed(2)}`;
+        const saldo = totalEntradas - totalSaidas;
+        document.getElementById('display-saldo').innerText = `R$ ${saldo.toFixed(2)}`;
+        document.getElementById('display-saldo-projetado').innerText = `Projeção: R$ ${saldoAcumulado.toFixed(2)}`;
+
+        renderChart(labels, dataGraph, colors);
+    }
+
+    function renderChart(labels, data, colors) {
+        const ctx = document.getElementById('graficoFluxo').getContext('2d');
+        if (chartInstance) chartInstance.destroy();
+        chartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Saldo', data: data, borderColor: '#3498db',
+                    backgroundColor: 'rgba(52, 152, 219, 0.1)', fill: true,
+                    pointBackgroundColor: colors, pointRadius: 4, tension: 0.3
+                }]
+            }, options: { responsive: true, maintainAspectRatio: false }
+        });
+    }
+
+    function formatarData(iso) {
+        if(!iso) return "";
+        const [ano, mes, dia] = iso.split('-');
+        return `${dia}/${mes}/${ano}`;
+    }
+    function mostrarLoading(show) {
+        document.getElementById('loading').style.display = show ? 'block' : 'none';
+    }
+
+    // Removemos o window.onload = iniciar, pois agora o login inicia tudo.
+</script>
 </body>
 </html>
-
